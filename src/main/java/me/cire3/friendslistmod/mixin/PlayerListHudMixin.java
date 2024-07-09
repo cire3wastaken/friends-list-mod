@@ -70,7 +70,7 @@ public abstract class PlayerListHudMixin {
             for (String teammate : FriendsListMod.teammates) {
                 if (teammate.equals(username)) {
                     entry.setDisplayName(p1);
-                    newList.addFirst(entry);
+                    newList.add(0, entry);
                     continue reorderLoop;
                 }
             }
@@ -78,7 +78,7 @@ public abstract class PlayerListHudMixin {
             for (String kos : FriendsListMod.kos) {
                 if (kos.equals(username)) {
                     entry.setDisplayName(p1);
-                    newList.addLast(entry);
+                    newList.add(entry);
                     continue reorderLoop;
                 }
             }
