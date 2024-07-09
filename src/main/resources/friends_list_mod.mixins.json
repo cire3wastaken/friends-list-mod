@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "me.cire3.friendslistmod.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityMixin",
+    "EntityColorMixin",
+    "EntityRendererMixin",
+    "PlayerListHudMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
