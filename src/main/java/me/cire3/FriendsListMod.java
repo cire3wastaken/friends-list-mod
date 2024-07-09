@@ -17,6 +17,7 @@ public class FriendsListMod implements ModInitializer {
 	// It is considered best practice to use your mod id as the logger's name.
 	// That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LoggerFactory.getLogger("friends-list-mod");
+	public static final String DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_21/src/main/resources/assets/friends-list-mod/data.json";
 	public static JsonObject data = null;
 
 	@Override
@@ -27,7 +28,7 @@ public class FriendsListMod implements ModInitializer {
 
 		LOGGER.info("Hello Fabric world!");
 
-		try (BufferedInputStream in = new BufferedInputStream(new URL("https://github.com/cire3wastaken/friends-list-mod/blob/1_21/src/main/resources/data.json").openStream())) {
+		try (BufferedInputStream in = new BufferedInputStream(new URL(DATA_URL).openStream())) {
 			ByteArrayOutputStream bao = new ByteArrayOutputStream();
 			byte[] buffer = new byte[1024];
 			int count = 0;
