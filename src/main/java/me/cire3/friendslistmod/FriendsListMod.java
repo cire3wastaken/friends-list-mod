@@ -94,8 +94,7 @@ public class FriendsListMod implements ModInitializer {
             while ((count = in.read(buffer, 0, 1024)) != -1) {
                 bao.write(buffer, 0, count);
             }
-            throw new RuntimeException("testing");
-//            jsonData = JsonParser.parseString(bao.toString()).getAsJsonObject();
+            jsonData = JsonParser.parseString(bao.toString()).getAsJsonObject();
         } catch (Exception e) {
             LOGGER.error("shoot", e);
             // use hard coded list instead
