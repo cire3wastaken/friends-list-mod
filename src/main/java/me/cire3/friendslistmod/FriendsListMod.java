@@ -232,8 +232,7 @@ public class FriendsListMod implements ModInitializer {
             player.removeStatusEffect(StatusEffects.INVISIBILITY);
 
         if (!player.hasStatusEffect(StatusEffects.GLOWING)) {
-            final RegistryEntry<StatusEffect> EFFECT = StatusEffects.GLOWING;
-            player.addStatusEffect(new StatusEffectInstance(EFFECT, -1, 1));
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, -1, 1));
             player.setGlowing(true);
         }
 
