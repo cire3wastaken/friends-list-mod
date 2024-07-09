@@ -6,16 +6,18 @@ import com.mojang.authlib.GameProfile;
 import me.cire3.friendslistmod.FriendsListMod;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.PlayerListHud;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.text.LiteralText;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
-import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Mixin(PlayerListHud.class)
@@ -34,9 +36,9 @@ public abstract class PlayerListHudMixin {
         return value;
     }
 
-    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/PlayerListHud;collectPlayerEntries()Ljava/util/List;"))
-    public List<PlayerListEntry> friendslistmod$reorderplayerlist(PlayerListHud instance) {
-        List<PlayerListEntry> originalList = MinecraftClient.getInstance().getNetworkHandler().getListedPlayerListEntries().stream().limit(80).toList();
+    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;getPlayerList()Ljava/util/Collection;"))
+    public Collection<PlayerListEntry> friendslistmod$reorderplayerlist(ClientPlayNetworkHandler instance) {
+        List<PlayerListEntry> originalList = instance.getPlayerList().stream().limit(80).toList();
 
         int ptr = 0;
         List<PlayerListEntry> newList = new ArrayList<>(originalList.size());
@@ -48,8 +50,8 @@ public abstract class PlayerListHudMixin {
             Style originalStyle = FriendsListMod.getDisplayName(entry).getStyle();
             int idx = displayname.indexOf(username);
 
-            MutableText p1 = Text.literal(displayname.substring(0, idx)).setStyle(originalStyle);
-            MutableText p2 = Text.literal(displayname.substring(idx + username.length() - 1, displayname.length() - 1)).setStyle(originalStyle);
+            MutableText p1 = new LiteralText(displayname.substring(0, idx)).setStyle(originalStyle);
+            MutableText p2 = new LiteralText(displayname.substring(idx + username.length() - 1, displayname.length() - 1)).setStyle(originalStyle);
 
             Formatting formatting = Formatting.WHITE;
 
@@ -65,7 +67,7 @@ public abstract class PlayerListHudMixin {
                     break;
                 }
 
-            p1.append(Text.literal(username).formatted(formatting)).append(p2);
+            p1.append(new LiteralText(username).formatted(formatting)).append(p2);
 
             for (String teammate : FriendsListMod.teammates) {
                 if (teammate.equals(username)) {

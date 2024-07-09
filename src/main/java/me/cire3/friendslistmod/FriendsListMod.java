@@ -16,6 +16,7 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.resource.Resource;
 import net.minecraft.scoreboard.Team;
+import net.minecraft.text.LiteralText;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -235,7 +236,7 @@ public class FriendsListMod implements ModInitializer {
             player.setGlowing(true);
         }
 
-        return Text.literal(username);
+        return new LiteralText(username);
     }
 
     private static boolean inBounds(double left, double top, double right, double bottom, double posX, double posY) {
@@ -245,7 +246,7 @@ public class FriendsListMod implements ModInitializer {
     public static Text getDisplayName(PlayerListEntry entry) {
         return entry.getDisplayName() != null
                 ? applyGameModeFormatting(entry, entry.getDisplayName().copy())
-                : applyGameModeFormatting(entry, Team.decorateName(entry.getScoreboardTeam(), Text.literal(entry.getProfile().getName())));
+                : applyGameModeFormatting(entry, Team.decorateName(entry.getScoreboardTeam(), new LiteralText(entry.getProfile().getName())));
     }
 
     private static Text applyGameModeFormatting(PlayerListEntry entry, MutableText name) {
