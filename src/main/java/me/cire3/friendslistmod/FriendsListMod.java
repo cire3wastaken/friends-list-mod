@@ -9,17 +9,20 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.resource.Resource;
+import net.minecraft.scoreboard.Team;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.GameMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -166,7 +169,7 @@ public class FriendsListMod implements ModInitializer {
     public void update(String username, AbstractClientPlayerEntity player, boolean wasFromPacket) {
         for (String teammate : teammates) {
             // cracked servers suck balls otherwise this be a UUID list kms
-            if (teammate.equals(username)) {
+            if (teammate.equalsIgnoreCase(username)) { // must becuz cracked servers suck my balls bro
                 MutableText newUsername = preparePlayerAndGetNewUsername(username, player);
                 Style style = newUsername.getStyle().withColor(Formatting.GREEN);
 
@@ -240,5 +243,15 @@ public class FriendsListMod implements ModInitializer {
 
     private static boolean inBounds(double left, double top, double right, double bottom, double posX, double posY) {
         return left <= posX && posX <= right && bottom <= posY && posY <= top;
+    }
+
+    public static Text getDisplayName(PlayerListEntry entry) {
+        return entry.getDisplayName() != null
+                ? applyGameModeFormatting(entry, entry.getDisplayName().copy())
+                : applyGameModeFormatting(entry, Team.decorateName(entry.getScoreboardTeam(), Text.literal(entry.getProfile().getName())));
+    }
+
+    private static Text applyGameModeFormatting(PlayerListEntry entry, MutableText name) {
+        return entry.getGameMode() == GameMode.SPECTATOR ? name.formatted(Formatting.ITALIC) : name;
     }
 }

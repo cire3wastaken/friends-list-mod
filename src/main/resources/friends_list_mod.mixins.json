@@ -5,7 +5,8 @@
   "mixins": [
     "LivingEntityMixin",
     "EntityColorMixin",
-    "EntityRendererMixin"
+    "EntityRendererMixin",
+    "PlayerListHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1
