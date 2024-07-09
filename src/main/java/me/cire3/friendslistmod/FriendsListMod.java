@@ -9,12 +9,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.resource.Resource;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.text.MutableText;
@@ -105,7 +104,7 @@ public class FriendsListMod implements ModInitializer {
             if (jsonData == null) {
                 Resource resource;
                 try {
-                    resource = MinecraftClient.getInstance().getResourceManager().getResourceOrThrow(Identifier.of("friendslistmod", "data.json"));
+                    resource = MinecraftClient.getInstance().getResourceManager().getResource(new Identifier("friendslistmod", "data.json"));
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
@@ -189,7 +188,7 @@ public class FriendsListMod implements ModInitializer {
                 player.setCustomName(newUsername.setStyle(style));
 
                 if (wasFromPacket || !alertedKosEntities.contains(player)) {
-                    Entity clientPlayer = MinecraftClient.getInstance().player;
+                    ClientPlayerEntity clientPlayer = MinecraftClient.getInstance().player;
 
                     int left = -42;
                     int right = 43;
@@ -205,13 +204,13 @@ public class FriendsListMod implements ModInitializer {
                     double selfZ = clientPlayer.getZ();
 
                     if (!inBounds(left, top, right, bottom, targetX, targetZ) && !inBounds(left, top, right, bottom, selfX, selfZ)) {
-                        MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
+                        clientPlayer.sendChatMessage("/clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
                                 .replace("%player%", username)
                                 .replace("%x%", (int) targetX + "")
                                 .replace("%y%", (int) targetY + "")
                                 .replace("%z%", (int) targetZ + ""));
 
-                        MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: I am at %x%, %y%, %z%"
+                        clientPlayer.sendChatMessage("/clans chat FLM: I am at %x%, %y%, %z%"
                                 .replace("%x%", (int) selfX + "")
                                 .replace("%y%", (int) selfY + "")
                                 .replace("%z%", (int) selfZ + ""));
