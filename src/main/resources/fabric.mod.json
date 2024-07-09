@@ -16,7 +16,7 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"me.cire3.Friendslistmod"
+			"me.cire3.FriendsListMod"
 		]
 	},
 	"mixins": [
