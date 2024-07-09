@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"id": "friends-list-mod",
+	"id": "friends_list_mod",
 	"version": "${version}",
 	"name": "friends-list-mod",
 	"description": "This is an example description! Tell everyone what your mod is about!",
