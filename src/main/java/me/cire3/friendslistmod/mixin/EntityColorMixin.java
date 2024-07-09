@@ -1,6 +1,6 @@
-package me.cire3.mixin;
+package me.cire3.friendslistmod.mixin;
 
-import me.cire3.FriendsListMod;
+import me.cire3.friendslistmod.FriendsListMod;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Entity.class)
 public abstract class EntityColorMixin {
     @Inject(method = "getTeamColorValue", at = @At("RETURN"), cancellable = true)
-    public void injectChangeColorValue(CallbackInfoReturnable<Integer> cir) {
+    public void friendslistmod$injectChangeColorValue(CallbackInfoReturnable<Integer> cir) {
         if ((Entity) (Object) this instanceof AbstractClientPlayerEntity entity) {
             if (FriendsListMod.kosEntities.contains(entity)) {
                 cir.setReturnValue(16711680);

@@ -1,11 +1,13 @@
 {
-	"required": true,
-	"package": "me.cire3.mixin",
-	"compatibilityLevel": "JAVA_21",
-	"mixins": [
-		"EntityColorMixin"
-	],
-	"injectors": {
-		"defaultRequire": 1
-	}
+  "required": true,
+  "package": "me.cire3.friendslistmod.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityMixin",
+    "EntityColorMixin",
+    "EntityRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }
