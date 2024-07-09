@@ -16,7 +16,6 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.resource.Resource;
 import net.minecraft.scoreboard.Team;
-import net.minecraft.text.LiteralText;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -105,7 +104,7 @@ public class FriendsListMod implements ModInitializer {
             if (jsonData == null) {
                 Resource resource;
                 try {
-                    resource = MinecraftClient.getInstance().getResourceManager().getResource(new Identifier("friendslistmod", "data.json"));
+                    resource = MinecraftClient.getInstance().getResourceManager().getResourceOrThrow(new Identifier("friendslistmod", "data.json"));
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
@@ -205,13 +204,13 @@ public class FriendsListMod implements ModInitializer {
                     double selfZ = clientPlayer.getZ();
 
                     if (!inBounds(left, top, right, bottom, targetX, targetZ) && !inBounds(left, top, right, bottom, selfX, selfZ)) {
-                        clientPlayer.sendChatMessage("/clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
+                        MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
                                 .replace("%player%", username)
                                 .replace("%x%", (int) targetX + "")
                                 .replace("%y%", (int) targetY + "")
                                 .replace("%z%", (int) targetZ + ""));
 
-                        clientPlayer.sendChatMessage("/clans chat FLM: I am at %x%, %y%, %z%"
+                        MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: I am at %x%, %y%, %z%"
                                 .replace("%x%", (int) selfX + "")
                                 .replace("%y%", (int) selfY + "")
                                 .replace("%z%", (int) selfZ + ""));
@@ -236,7 +235,7 @@ public class FriendsListMod implements ModInitializer {
             player.setGlowing(true);
         }
 
-        return new LiteralText(username);
+        return Text.literal(username);
     }
 
     private static boolean inBounds(double left, double top, double right, double bottom, double posX, double posY) {
@@ -246,7 +245,7 @@ public class FriendsListMod implements ModInitializer {
     public static Text getDisplayName(PlayerListEntry entry) {
         return entry.getDisplayName() != null
                 ? applyGameModeFormatting(entry, entry.getDisplayName().copy())
-                : applyGameModeFormatting(entry, Team.decorateName(entry.getScoreboardTeam(), new LiteralText(entry.getProfile().getName())));
+                : applyGameModeFormatting(entry, Team.decorateName(entry.getScoreboardTeam(), Text.literal(entry.getProfile().getName())));
     }
 
     private static Text applyGameModeFormatting(PlayerListEntry entry, MutableText name) {
