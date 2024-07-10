@@ -112,7 +112,6 @@ public class FriendsListMod implements ModInitializer {
             }
         } catch (Exception e) {
             LOGGER.error("POINTER url failed!", e);
-            // use hard coded list instead
             jsonData = null;
         }
 
@@ -154,12 +153,13 @@ public class FriendsListMod implements ModInitializer {
                 jsonData = JsonParser.parseString(json).getAsJsonObject();
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            LOGGER.error("Hardcoded JSON failed!", e);
+            jsonData = null;
         }
 
         // at this point, if jsonData is null we are cooked
         if (jsonData == null)
-            throw new RuntimeException("Could not load friends data!");
+            throw new RuntimeException("Could not load data!");
 
         JsonArray teammatesJson = jsonData.getAsJsonArray("teammates");
         teammates = new String[teammatesJson.size()];
