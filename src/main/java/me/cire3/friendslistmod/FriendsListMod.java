@@ -13,6 +13,7 @@ import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.network.ServerInfo;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -246,17 +247,19 @@ public class FriendsListMod implements ModInitializer {
                     double selfZ = clientPlayer.getZ();
 
                     if (!inBounds(left, top, right, bottom, targetX, targetZ)) {
-                        MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
-                                .replace("%player%", username)
-                                .replace("%x%", (int) targetX + "")
-                                .replace("%y%", (int) targetY + "")
-                                .replace("%z%", (int) targetZ + ""));
+                        ServerInfo info = MinecraftClient.getInstance().getNetworkHandler().getServerInfo();
+                        if (info != null && info.address.contains("mc.arch.lol")) {
+                            MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
+                                    .replace("%player%", username)
+                                    .replace("%x%", (int) targetX + "")
+                                    .replace("%y%", (int) targetY + "")
+                                    .replace("%z%", (int) targetZ + ""));
 
-                        MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: I am at %x%, %y%, %z%"
-                                .replace("%x%", (int) selfX + "")
-                                .replace("%y%", (int) selfY + "")
-                                .replace("%z%", (int) selfZ + "") + (inBounds(left, top, right, bottom, selfX, selfZ) ? ". I am in spawn." : "."));
-
+                            MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: I am at %x%, %y%, %z%"
+                                    .replace("%x%", (int) selfX + "")
+                                    .replace("%y%", (int) selfY + "")
+                                    .replace("%z%", (int) selfZ + "") + (inBounds(left, top, right, bottom, selfX, selfZ) ? ". I am in spawn." : "."));
+                        }
                         alertedKosEntities.add(player);
                     }
                 }
