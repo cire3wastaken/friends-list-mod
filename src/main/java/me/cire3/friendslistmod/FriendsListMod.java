@@ -49,7 +49,6 @@ public class FriendsListMod implements ModInitializer {
     public static boolean outlinesEnabled = true;
     public static final Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
     public static final Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
-    private static final Map<String, Long> alertedPlayerTimes = new HashMap<>();
     private static final Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
 
     private static int lastCount = -1;
@@ -234,10 +233,7 @@ public class FriendsListMod implements ModInitializer {
                     player.setCustomName(newUsername.setStyle(style));
                 }
 
-                Long lng = alertedPlayerTimes.get(player.getGameProfile().getName());
-                long lngValue = lng == null ? 0 : lng;
-
-                if (wasFromPacket || !alertedKosEntities.contains(player) && System.currentTimeMillis() - lngValue >= 15000) {
+                if (wasFromPacket || !alertedKosEntities.contains(player)) {
                     Entity clientPlayer = MinecraftClient.getInstance().player;
 
                     int left = -42;
@@ -276,7 +272,6 @@ public class FriendsListMod implements ModInitializer {
                             }
                         }
                         alertedKosEntities.add(player);
-                        alertedPlayerTimes.put(player.getGameProfile().getName(), System.currentTimeMillis());
                     }
                 }
 
