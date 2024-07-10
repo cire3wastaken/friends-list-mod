@@ -13,6 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class LivingEntityMixin {
     @Inject(method = "isGlowing", at = @At("RETURN"), cancellable = true)
     public void friendslistmod$forceEntityGlowing(CallbackInfoReturnable<Boolean> cir) {
+        if (!FriendsListMod.outlinesEnabled)
+            return;
+
         if ((Entity) (Object) this instanceof AbstractClientPlayerEntity entity) {
             if (FriendsListMod.kosEntities.contains(entity) || FriendsListMod.teammateEntities.contains(entity))
                 cir.setReturnValue(true);

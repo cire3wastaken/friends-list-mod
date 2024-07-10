@@ -3,14 +3,20 @@ package me.cire3.friendslistmod;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+import me.cire3.friendslistmod.commands.ForceReloadDataCommand;
+import me.cire3.friendslistmod.commands.ToggleArchOnlyMessagesCommand;
+import me.cire3.friendslistmod.commands.TogglePlayerOutlinesCommand;
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.network.ServerInfo;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -28,25 +34,25 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class FriendsListMod implements ModInitializer {
     // This logger is used to write text to the console and the log file.
     // It is considered best practice to use your mod id as the logger's name.
     // That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LoggerFactory.getLogger("friendslistmod");
-    public static final String DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_21/src/main/resources/assets/friendslistmod/data.json";
+    public static final String FALLBACK_DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_21/src/main/resources/assets/friendslistmod/data.json";
+    public static final String POINTER_DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_20_4/pointer.txt";
     public static JsonObject jsonData = null;
     public static String[] teammates;
     public static String[] kos;
-    public final static Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
-    public final static Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
-    private final static Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
+    public static boolean sendOnArchOnly = true;
+    public static boolean outlinesEnabled = true;
+    public static final Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
+    public static final Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
+    private static final Map<String, Long> alertedPlayerTimes = new HashMap<>();
+    private static final Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
 
     private static int lastCount = -1;
     private static long lastRun = -1;
@@ -83,32 +89,68 @@ public class FriendsListMod implements ModInitializer {
                     this.update();
             }
         });
+
+        ForceReloadDataCommand.register(this);
+        ToggleArchOnlyMessagesCommand.register();
+        TogglePlayerOutlinesCommand.register(this);
     }
 
     @SuppressWarnings("deprecation")
-    private void setupData() {
-        try (BufferedInputStream in = new BufferedInputStream(new URL(DATA_URL).openStream())) {
+    public void setupData() {
+        try (BufferedInputStream in = new BufferedInputStream(new URL(POINTER_DATA_URL).openStream())) {
             ByteArrayOutputStream bao = new ByteArrayOutputStream();
             byte[] buffer = new byte[1024];
             int count = 0;
             while ((count = in.read(buffer, 0, 1024)) != -1) {
                 bao.write(buffer, 0, count);
             }
-            jsonData = JsonParser.parseString(bao.toString()).getAsJsonObject();
+
+            // read the URL the pointer url points to
+            try (BufferedInputStream in2 = new BufferedInputStream(new URL(bao.toString()).openStream())) {
+                ByteArrayOutputStream bao1 = new ByteArrayOutputStream();
+                while ((count = in2.read(buffer, 0, 1024)) != -1) {
+                    bao1.write(buffer, 0, count);
+                }
+
+                try {
+                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+                } catch (JsonSyntaxException e) {
+                    // silently swallow, use fallback
+                    jsonData = null;
+                }
+            }
         } catch (Exception e) {
-            LOGGER.error("shoot", e);
-            // use hard coded list instead
+            LOGGER.error("POINTER url failed!", e);
             jsonData = null;
         }
 
+        if (jsonData == null) {
+            // try using fallback url instead
+            try (BufferedInputStream in2 = new BufferedInputStream(new URL(FALLBACK_DATA_URL).openStream())) {
+                ByteArrayOutputStream bao1 = new ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int count = 0;
+                while ((count = in2.read(buffer, 0, 1024)) != -1) {
+                    bao1.write(buffer, 0, count);
+                }
+
+                try {
+                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+                } catch (JsonSyntaxException e) {
+                    // silently swallow, use hardcoded
+                    jsonData = null;
+                }
+            } catch (Exception e) {
+                LOGGER.error("FALLBACK url failed!", e);
+                jsonData = null;
+            }
+        }
+
         try {
+            // use hardcoded
             if (jsonData == null) {
                 Resource resource;
-                try {
-                    resource = MinecraftClient.getInstance().getResourceManager().getResource(new Identifier("friendslistmod", "data.json"));
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
-                }
+                resource = MinecraftClient.getInstance().getResourceManager().getResource(new Identifier("friendslistmod", "data.json"));
 
                 if (resource == null)
                     throw new RuntimeException("Could not find friends data!");
@@ -118,11 +160,13 @@ public class FriendsListMod implements ModInitializer {
                 jsonData = JsonParser.parseString(json).getAsJsonObject();
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            LOGGER.error("Hardcoded JSON failed!", e);
+            jsonData = null;
         }
 
+        // at this point, if jsonData is null we are cooked
         if (jsonData == null)
-            throw new RuntimeException("Could not load friends data!");
+            throw new RuntimeException("Could not load data!");
 
         JsonArray teammatesJson = jsonData.getAsJsonArray("teammates");
         teammates = new String[teammatesJson.size()];
@@ -170,9 +214,11 @@ public class FriendsListMod implements ModInitializer {
             // cracked servers suck balls otherwise this be a UUID list kms
             if (teammate.equalsIgnoreCase(username)) { // must becuz cracked servers suck my balls bro
                 MutableText newUsername = preparePlayerAndGetNewUsername(username, player);
-                Style style = newUsername.getStyle().withColor(Formatting.GREEN);
+                if (outlinesEnabled) {
+                    Style style = newUsername.getStyle().withColor(Formatting.GREEN);
 
-                player.setCustomName(newUsername.setStyle(style));
+                    player.setCustomName(newUsername.setStyle(style));
+                }
 
                 teammateEntities.add(player);
 
@@ -180,15 +226,22 @@ public class FriendsListMod implements ModInitializer {
             }
         }
 
+        ServerInfo server = MinecraftClient.getInstance().getCurrentServerEntry();
+        boolean shouldSend = (server != null && server.address.contains("mc.arch.lol")) || !sendOnArchOnly;
         for (String kos : kos) {
             // cracked servers suck balls otherwise this be a UUID list kms
             if (username.toLowerCase().contains(kos.toLowerCase())) {
                 MutableText newUsername = preparePlayerAndGetNewUsername(username, player);
-                Style style = newUsername.getStyle().withColor(Formatting.RED);
+                if (outlinesEnabled) {
+                    Style style = newUsername.getStyle().withColor(Formatting.RED);
 
-                player.setCustomName(newUsername.setStyle(style));
+                    player.setCustomName(newUsername.setStyle(style));
+                }
 
-                if (wasFromPacket || !alertedKosEntities.contains(player)) {
+                Long lng = alertedPlayerTimes.get(player.getGameProfile().getName());
+                long lngValue = lng == null ? 0 : lng;
+
+                if (wasFromPacket || !alertedKosEntities.contains(player) && System.currentTimeMillis() - lngValue >= 15000) {
                     ClientPlayerEntity clientPlayer = MinecraftClient.getInstance().player;
 
                     int left = -42;
@@ -204,19 +257,29 @@ public class FriendsListMod implements ModInitializer {
                     double selfY = clientPlayer.getY();
                     double selfZ = clientPlayer.getZ();
 
-                    if (!inBounds(left, top, right, bottom, targetX, targetZ) && !inBounds(left, top, right, bottom, selfX, selfZ)) {
-                        clientPlayer.sendChatMessage("/clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
-                                .replace("%player%", username)
-                                .replace("%x%", (int) targetX + "")
-                                .replace("%y%", (int) targetY + "")
-                                .replace("%z%", (int) targetZ + ""));
+                    if (!inBounds(left, top, right, bottom, targetX, targetZ)) {
+                        if (shouldSend) {
+                            clientPlayer.sendChatMessage("/clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
+                                    .replace("%player%", username)
+                                    .replace("%x%", (int) targetX + "")
+                                    .replace("%y%", (int) targetY + "")
+                                    .replace("%z%", (int) targetZ + ""));
 
-                        clientPlayer.sendChatMessage("/clans chat FLM: I am at %x%, %y%, %z%"
-                                .replace("%x%", (int) selfX + "")
-                                .replace("%y%", (int) selfY + "")
-                                .replace("%z%", (int) selfZ + ""));
+                            clientPlayer.sendChatMessage("/clans chat FLM: I am at %x%, %y%, %z%"
+                                    .replace("%x%", (int) selfX + "")
+                                    .replace("%y%", (int) selfY + "")
+                                    .replace("%z%", (int) selfZ + "") + (inBounds(left, top, right, bottom, selfX, selfZ) ? ". I am in spawn." : "."));
 
+                            for (String teammate : teammates) {
+                                if (MinecraftClient.getInstance().getNetworkHandler().getPlayerList().stream().anyMatch(
+                                        (entry) -> teammate.equals(entry.getProfile().getName()))) {
+                                    clientPlayer.sendChatMessage("/tpahere %teammate%"
+                                            .replace("%teammate%", teammate));
+                                }
+                            }
+                        }
                         alertedKosEntities.add(player);
+                        alertedPlayerTimes.put(player.getGameProfile().getName(), System.currentTimeMillis());
                     }
                 }
 
@@ -228,12 +291,16 @@ public class FriendsListMod implements ModInitializer {
     }
 
     private MutableText preparePlayerAndGetNewUsername(String username, AbstractClientPlayerEntity player) {
-        if (player.hasStatusEffect(StatusEffects.INVISIBILITY))
-            player.removeStatusEffect(StatusEffects.INVISIBILITY);
+        if (outlinesEnabled) {
+            if (player.hasStatusEffect(StatusEffects.INVISIBILITY)) {
+                player.removeStatusEffect(StatusEffects.INVISIBILITY);
+                player.setInvisible(false);
+            }
 
-        if (!player.hasStatusEffect(StatusEffects.GLOWING)) {
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, -1, 1));
-            player.setGlowing(true);
+            if (!player.hasStatusEffect(StatusEffects.GLOWING)) {
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, -1, 1));
+                player.setGlowing(true);
+            }
         }
 
         return new LiteralText(username);
