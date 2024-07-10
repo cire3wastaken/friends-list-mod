@@ -112,7 +112,7 @@ public class FriendsListMod implements ModInitializer {
                 }
 
                 try {
-//                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
                 } catch (JsonSyntaxException e) {
                     // silently swallow, use fallback
                     jsonData = null;
@@ -134,7 +134,7 @@ public class FriendsListMod implements ModInitializer {
                 }
 
                 try {
-//                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
                 } catch (JsonSyntaxException e) {
                     // silently swallow, use hardcoded
                     jsonData = null;
