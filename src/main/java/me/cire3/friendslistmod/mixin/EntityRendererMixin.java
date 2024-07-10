@@ -13,11 +13,13 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class EntityRendererMixin {
     @ModifyExpressionValue(method = "renderLabelIfPresent", at = @At(value = "CONSTANT", args = "intValue=-1"))
     public int friendslistmod$changenametagcolor(int value, @Local(argsOnly = true) Entity entity) {
-        if (entity instanceof AbstractClientPlayerEntity player) {
-            if (FriendsListMod.teammateEntities.contains(player))
-                return 65280;
-            if (FriendsListMod.kosEntities.contains(player))
-                return 16711680;
+        if (FriendsListMod.enabled) {
+            if (entity instanceof AbstractClientPlayerEntity player) {
+                if (FriendsListMod.teammateEntities.contains(player))
+                    return 65280;
+                if (FriendsListMod.kosEntities.contains(player))
+                    return 16711680;
+            }
         }
 
         return value;
@@ -25,9 +27,11 @@ public abstract class EntityRendererMixin {
 
     @ModifyExpressionValue(method = "renderLabelIfPresent", at = @At(value = "CONSTANT", args = "doubleValue=4096.0"))
     public double friendslistmod$alwaysrendernametag(double value, @Local(argsOnly = true) Entity entity) {
-        if (entity instanceof AbstractClientPlayerEntity player) {
-            if (FriendsListMod.kosEntities.contains(player) || FriendsListMod.teammateEntities.contains(player))
-                return Double.MAX_VALUE;
+        if (FriendsListMod.enabled) {
+            if (entity instanceof AbstractClientPlayerEntity player) {
+                if (FriendsListMod.kosEntities.contains(player) || FriendsListMod.teammateEntities.contains(player))
+                    return Double.MAX_VALUE;
+            }
         }
 
         return value;

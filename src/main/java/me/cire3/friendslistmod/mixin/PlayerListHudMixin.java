@@ -12,14 +12,16 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class PlayerListHudMixin {
     @ModifyExpressionValue(method = "render", at = @At(value = "CONSTANT", args = "intValue=-1", ordinal = 1))
     public int friendslistmod$changetablistnamecolor(int value, @Local GameProfile profile) {
-        String username = profile.getName();
-        for (String teammate : FriendsListMod.teammates)
-            if (teammate.equals(username))
-                return 65280;
+        if (FriendsListMod.enabled) {
+            String username = profile.getName();
+            for (String teammate : FriendsListMod.teammates)
+                if (teammate.equals(username))
+                    return 65280;
 
-        for (String kos : FriendsListMod.kos)
-            if (kos.equals(username))
-                return 16711680;
+            for (String kos : FriendsListMod.kos)
+                if (kos.equals(username))
+                    return 16711680;
+        }
 
         return value;
     }

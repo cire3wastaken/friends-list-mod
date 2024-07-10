@@ -3,18 +3,18 @@ package me.cire3.friendslistmod;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import me.cire3.friendslistmod.commands.ToggleModCommand;
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.resource.Resource;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.text.MutableText;
@@ -30,7 +30,6 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,9 +43,10 @@ public class FriendsListMod implements ModInitializer {
     public static JsonObject jsonData = null;
     public static String[] teammates;
     public static String[] kos;
-    public final static Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
-    public final static Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
-    private final static Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
+    public static boolean enabled = true;
+    public static final Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
+    public static final Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
+    private static final Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
 
     private static int lastCount = -1;
     private static long lastRun = -1;
@@ -83,6 +83,8 @@ public class FriendsListMod implements ModInitializer {
                     this.update();
             }
         });
+
+        ClientCommandRegistrationCallback.EVENT.register(ToggleModCommand::register);
     }
 
     @SuppressWarnings("deprecation")
