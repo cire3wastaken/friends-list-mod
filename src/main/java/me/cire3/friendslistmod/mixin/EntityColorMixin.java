@@ -13,9 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class EntityColorMixin {
     @Inject(method = "getTeamColorValue", at = @At("RETURN"), cancellable = true)
     public void friendslistmod$injectChangeColorValue(CallbackInfoReturnable<Integer> cir) {
-        if (FriendsListMod.enabled)
-            return;
-
         if ((Entity) (Object) this instanceof AbstractClientPlayerEntity entity) {
             if (FriendsListMod.kosEntities.contains(entity)) {
                 cir.setReturnValue(16711680);

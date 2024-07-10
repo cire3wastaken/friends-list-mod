@@ -3,6 +3,7 @@ package me.cire3.friendslistmod;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import me.cire3.friendslistmod.commands.ToggleModCommand;
 import net.fabricmc.api.ModInitializer;
 
@@ -30,16 +31,15 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.net.URL;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class FriendsListMod implements ModInitializer {
     // This logger is used to write text to the console and the log file.
     // It is considered best practice to use your mod id as the logger's name.
     // That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LoggerFactory.getLogger("friendslistmod");
-    public static final String DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_21/src/main/resources/assets/friendslistmod/data.json";
+    public static final String FALLBACK_DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_21/src/main/resources/assets/friendslistmod/data.json";
+    public static final String POINTER_DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_20_4/pointer.txt";
     public static JsonObject jsonData = null;
     public static String[] teammates;
     public static String[] kos;
@@ -84,23 +84,57 @@ public class FriendsListMod implements ModInitializer {
             }
         });
 
-        ClientCommandRegistrationCallback.EVENT.register(ToggleModCommand::register);
+        ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> ToggleModCommand.register(dispatcher, registryAccess, this)));
     }
 
     @SuppressWarnings("deprecation")
     private void setupData() {
-        try (BufferedInputStream in = new BufferedInputStream(new URL(DATA_URL).openStream())) {
+        try (BufferedInputStream in = new BufferedInputStream(new URL(POINTER_DATA_URL).openStream())) {
             ByteArrayOutputStream bao = new ByteArrayOutputStream();
             byte[] buffer = new byte[1024];
             int count = 0;
             while ((count = in.read(buffer, 0, 1024)) != -1) {
                 bao.write(buffer, 0, count);
             }
-            jsonData = JsonParser.parseString(bao.toString()).getAsJsonObject();
+
+            try (BufferedInputStream in2 = new BufferedInputStream(new URL(bao.toString()).openStream())) {
+                ByteArrayOutputStream bao1 = new ByteArrayOutputStream();
+                while ((count = in2.read(buffer, 0, 1024)) != -1) {
+                    bao1.write(buffer, 0, count);
+                }
+
+                try {
+                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+                } catch (JsonSyntaxException e) {
+                    // silently swallow, use fallback
+                    jsonData = null;
+                }
+            }
         } catch (Exception e) {
-            LOGGER.error("shoot", e);
+            LOGGER.error("POINTER url failed!", e);
             // use hard coded list instead
             jsonData = null;
+        }
+
+        if (jsonData == null) {
+            try (BufferedInputStream in2 = new BufferedInputStream(new URL(FALLBACK_DATA_URL).openStream())) {
+                ByteArrayOutputStream bao1 = new ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int count = 0;
+                while ((count = in2.read(buffer, 0, 1024)) != -1) {
+                    bao1.write(buffer, 0, count);
+                }
+
+                try {
+                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+                } catch (JsonSyntaxException e) {
+                    // silently swallow, use hardcoded
+                    jsonData = null;
+                }
+            } catch (Exception e) {
+                LOGGER.error("FALLBACK url failed!", e);
+                jsonData = null;
+            }
         }
 
         try {
@@ -123,6 +157,7 @@ public class FriendsListMod implements ModInitializer {
             throw new RuntimeException(e);
         }
 
+        // at this point, if jsonData is null we are cooked
         if (jsonData == null)
             throw new RuntimeException("Could not load friends data!");
 
@@ -172,9 +207,11 @@ public class FriendsListMod implements ModInitializer {
             // cracked servers suck balls otherwise this be a UUID list kms
             if (teammate.equalsIgnoreCase(username)) { // must becuz cracked servers suck my balls bro
                 MutableText newUsername = preparePlayerAndGetNewUsername(username, player);
-                Style style = newUsername.getStyle().withColor(Formatting.GREEN);
+                if (enabled) {
+                    Style style = newUsername.getStyle().withColor(Formatting.GREEN);
 
-                player.setCustomName(newUsername.setStyle(style));
+                    player.setCustomName(newUsername.setStyle(style));
+                }
 
                 teammateEntities.add(player);
 
@@ -186,9 +223,11 @@ public class FriendsListMod implements ModInitializer {
             // cracked servers suck balls otherwise this be a UUID list kms
             if (username.toLowerCase().contains(kos.toLowerCase())) {
                 MutableText newUsername = preparePlayerAndGetNewUsername(username, player);
-                Style style = newUsername.getStyle().withColor(Formatting.RED);
+                if (enabled) {
+                    Style style = newUsername.getStyle().withColor(Formatting.RED);
 
-                player.setCustomName(newUsername.setStyle(style));
+                    player.setCustomName(newUsername.setStyle(style));
+                }
 
                 if (wasFromPacket || !alertedKosEntities.contains(player)) {
                     Entity clientPlayer = MinecraftClient.getInstance().player;
@@ -206,7 +245,7 @@ public class FriendsListMod implements ModInitializer {
                     double selfY = clientPlayer.getY();
                     double selfZ = clientPlayer.getZ();
 
-                    if (!inBounds(left, top, right, bottom, targetX, targetZ) && !inBounds(left, top, right, bottom, selfX, selfZ)) {
+                    if (!inBounds(left, top, right, bottom, targetX, targetZ)) {
                         MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
                                 .replace("%player%", username)
                                 .replace("%x%", (int) targetX + "")
@@ -216,7 +255,7 @@ public class FriendsListMod implements ModInitializer {
                         MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: I am at %x%, %y%, %z%"
                                 .replace("%x%", (int) selfX + "")
                                 .replace("%y%", (int) selfY + "")
-                                .replace("%z%", (int) selfZ + ""));
+                                .replace("%z%", (int) selfZ + "") + (inBounds(left, top, right, bottom, selfX, selfZ) ? ". I am in spawn." : "."));
 
                         alertedKosEntities.add(player);
                     }
@@ -230,12 +269,16 @@ public class FriendsListMod implements ModInitializer {
     }
 
     private MutableText preparePlayerAndGetNewUsername(String username, AbstractClientPlayerEntity player) {
-        if (player.hasStatusEffect(StatusEffects.INVISIBILITY))
-            player.removeStatusEffect(StatusEffects.INVISIBILITY);
+        if (enabled) {
+            if (player.hasStatusEffect(StatusEffects.INVISIBILITY)) {
+                player.removeStatusEffect(StatusEffects.INVISIBILITY);
+                player.setInvisible(false);
+            }
 
-        if (!player.hasStatusEffect(StatusEffects.GLOWING)) {
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, -1, 1));
-            player.setGlowing(true);
+            if (!player.hasStatusEffect(StatusEffects.GLOWING)) {
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, -1, 1));
+                player.setGlowing(true);
+            }
         }
 
         return Text.literal(username);
