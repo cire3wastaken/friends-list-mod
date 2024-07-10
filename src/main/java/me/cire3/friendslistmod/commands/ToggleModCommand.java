@@ -10,8 +10,8 @@ import net.minecraft.text.Text;
 public class ToggleModCommand {
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
         dispatcher.register(ClientCommandManager.literal("toggleplayeroutlines").executes(context -> {
-            context.getSource().sendFeedback(Text.literal("Toggled player outlines in Friends List Mod!"));
             FriendsListMod.enabled = !FriendsListMod.enabled;
+            context.getSource().sendFeedback(Text.literal("Toggled player outlines in Friends List Mod! Player outlines are now " + (FriendsListMod.enabled ? "ON" : "OFF") + "."));
             return 1;
         }));
     }
