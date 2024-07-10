@@ -4,9 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
-import me.cire3.friendslistmod.commands.ToggleModCommand;
+import me.cire3.friendslistmod.commands.ForceReloadDataCommand;
+import me.cire3.friendslistmod.commands.ToggleArchOnlyMessagesCommand;
+import me.cire3.friendslistmod.commands.TogglePlayerOutlinesCommand;
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
@@ -30,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.net.URL;
 import java.util.*;
 
@@ -44,9 +46,11 @@ public class FriendsListMod implements ModInitializer {
     public static JsonObject jsonData = null;
     public static String[] teammates;
     public static String[] kos;
-    public static boolean enabled = true;
+    public static boolean sendOnArchOnly = true;
+    public static boolean outlinesEnabled = true;
     public static final Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
     public static final Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
+    private static final Map<String, Long> alertedPlayerTimes = new HashMap<>();
     private static final Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
 
     private static int lastCount = -1;
@@ -85,11 +89,13 @@ public class FriendsListMod implements ModInitializer {
             }
         });
 
-        ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> ToggleModCommand.register(dispatcher, registryAccess, this)));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> ForceReloadDataCommand.register(dispatcher, this));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> ToggleArchOnlyMessagesCommand.register(dispatcher));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> TogglePlayerOutlinesCommand.register(dispatcher, this));
     }
 
     @SuppressWarnings("deprecation")
-    private void setupData() {
+    public void setupData() {
         try (BufferedInputStream in = new BufferedInputStream(new URL(POINTER_DATA_URL).openStream())) {
             ByteArrayOutputStream bao = new ByteArrayOutputStream();
             byte[] buffer = new byte[1024];
@@ -98,6 +104,7 @@ public class FriendsListMod implements ModInitializer {
                 bao.write(buffer, 0, count);
             }
 
+            // read the URL the pointer url points to
             try (BufferedInputStream in2 = new BufferedInputStream(new URL(bao.toString()).openStream())) {
                 ByteArrayOutputStream bao1 = new ByteArrayOutputStream();
                 while ((count = in2.read(buffer, 0, 1024)) != -1) {
@@ -105,7 +112,7 @@ public class FriendsListMod implements ModInitializer {
                 }
 
                 try {
-                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+//                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
                 } catch (JsonSyntaxException e) {
                     // silently swallow, use fallback
                     jsonData = null;
@@ -117,6 +124,7 @@ public class FriendsListMod implements ModInitializer {
         }
 
         if (jsonData == null) {
+            // try using fallback url instead
             try (BufferedInputStream in2 = new BufferedInputStream(new URL(FALLBACK_DATA_URL).openStream())) {
                 ByteArrayOutputStream bao1 = new ByteArrayOutputStream();
                 byte[] buffer = new byte[1024];
@@ -126,7 +134,7 @@ public class FriendsListMod implements ModInitializer {
                 }
 
                 try {
-                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
+//                    jsonData = JsonParser.parseString(bao1.toString()).getAsJsonObject();
                 } catch (JsonSyntaxException e) {
                     // silently swallow, use hardcoded
                     jsonData = null;
@@ -138,13 +146,10 @@ public class FriendsListMod implements ModInitializer {
         }
 
         try {
+            // use hardcoded
             if (jsonData == null) {
                 Resource resource;
-                try {
-                    resource = MinecraftClient.getInstance().getResourceManager().getResourceOrThrow(Identifier.of("friendslistmod", "data.json"));
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
-                }
+                resource = MinecraftClient.getInstance().getResourceManager().getResourceOrThrow(Identifier.of("friendslistmod", "data.json"));
 
                 if (resource == null)
                     throw new RuntimeException("Could not find friends data!");
@@ -208,7 +213,7 @@ public class FriendsListMod implements ModInitializer {
             // cracked servers suck balls otherwise this be a UUID list kms
             if (teammate.equalsIgnoreCase(username)) { // must becuz cracked servers suck my balls bro
                 MutableText newUsername = preparePlayerAndGetNewUsername(username, player);
-                if (enabled) {
+                if (outlinesEnabled) {
                     Style style = newUsername.getStyle().withColor(Formatting.GREEN);
 
                     player.setCustomName(newUsername.setStyle(style));
@@ -224,13 +229,16 @@ public class FriendsListMod implements ModInitializer {
             // cracked servers suck balls otherwise this be a UUID list kms
             if (username.toLowerCase().contains(kos.toLowerCase())) {
                 MutableText newUsername = preparePlayerAndGetNewUsername(username, player);
-                if (enabled) {
+                if (outlinesEnabled) {
                     Style style = newUsername.getStyle().withColor(Formatting.RED);
 
                     player.setCustomName(newUsername.setStyle(style));
                 }
 
-                if (wasFromPacket || !alertedKosEntities.contains(player)) {
+                Long lng = alertedPlayerTimes.get(player.getGameProfile().getName());
+                long lngValue = lng == null ? 0 : lng;
+
+                if (wasFromPacket || !alertedKosEntities.contains(player) && System.currentTimeMillis() - lngValue >= 15000) {
                     Entity clientPlayer = MinecraftClient.getInstance().player;
 
                     int left = -42;
@@ -248,7 +256,7 @@ public class FriendsListMod implements ModInitializer {
 
                     if (!inBounds(left, top, right, bottom, targetX, targetZ)) {
                         ServerInfo info = MinecraftClient.getInstance().getNetworkHandler().getServerInfo();
-                        if (info != null && info.address.contains("mc.arch.lol")) {
+                        if (!sendOnArchOnly || info != null && info.address.contains("mc.arch.lol")) {
                             MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("clans chat FLM: Found KOS: %player% at %x%, %y%, %z%"
                                     .replace("%player%", username)
                                     .replace("%x%", (int) targetX + "")
@@ -259,8 +267,17 @@ public class FriendsListMod implements ModInitializer {
                                     .replace("%x%", (int) selfX + "")
                                     .replace("%y%", (int) selfY + "")
                                     .replace("%z%", (int) selfZ + "") + (inBounds(left, top, right, bottom, selfX, selfZ) ? ". I am in spawn." : "."));
+
+                            for (String teammate : teammates) {
+                                if (MinecraftClient.getInstance().getNetworkHandler().getPlayerList().stream().anyMatch(
+                                        (entry) -> teammate.equals(entry.getProfile().getName()))) {
+                                    MinecraftClient.getInstance().getNetworkHandler().sendChatCommand("tpahere %teammate%"
+                                            .replace("%teammate%", teammate));
+                                }
+                            }
                         }
                         alertedKosEntities.add(player);
+                        alertedPlayerTimes.put(player.getGameProfile().getName(), System.currentTimeMillis());
                     }
                 }
 
@@ -272,7 +289,7 @@ public class FriendsListMod implements ModInitializer {
     }
 
     private MutableText preparePlayerAndGetNewUsername(String username, AbstractClientPlayerEntity player) {
-        if (enabled) {
+        if (outlinesEnabled) {
             if (player.hasStatusEffect(StatusEffects.INVISIBILITY)) {
                 player.removeStatusEffect(StatusEffects.INVISIBILITY);
                 player.setInvisible(false);
