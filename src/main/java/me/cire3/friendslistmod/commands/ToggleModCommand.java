@@ -23,7 +23,7 @@ public class ToggleModCommand {
 
                 for (AbstractClientPlayerEntity player : FriendsListMod.kosEntities) {
                     player.removeStatusEffect(StatusEffects.GLOWING);
-                    player.setGlowing(true);
+                    player.setGlowing(false);
                 }
             }
 
