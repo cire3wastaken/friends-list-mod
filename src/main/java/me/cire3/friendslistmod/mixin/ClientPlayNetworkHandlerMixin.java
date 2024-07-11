@@ -19,6 +19,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (!FriendsListMod.antiArchLagForFlyingMachine)
             return;
 
+        boolean wasPlayerAPassenger = bl;
+        if (!wasPlayerAPassenger)
+            return;
+
         MinecraftClient mc = MinecraftClient.getInstance();
 
         if (mc.world == null || mc.player == null)
@@ -26,8 +30,6 @@ public abstract class ClientPlayNetworkHandlerMixin {
 
         if (mc.getCurrentServerEntry() != null && mc.getCurrentServerEntry().address.contains("mc.arch.lol")) {
             Entity entity = mc.world.getEntityById(packet.getId());
-
-            boolean wasPlayerAPassenger = bl;
 
             if (entity == null)
                 return;
@@ -39,8 +41,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
                         return; // we dont care if the player is still in the passengers
             }
 
-            if (!wasPlayerAPassenger)
-                return;
+
 
             // player is not in new passenger list, player was a passenger before this packet, and this is enabled
             // ran NEXT tick
