@@ -89,7 +89,7 @@ public class FriendsListMod implements ModInitializer {
                 if (System.currentTimeMillis() >= entry.getValue()) {
                     entry.getKey().run();
                 } else {
-                    map.put(entry.getKey(), System.currentTimeMillis());
+                    map.put(entry.getKey(), entry.getValue());
                 }
             }
 
