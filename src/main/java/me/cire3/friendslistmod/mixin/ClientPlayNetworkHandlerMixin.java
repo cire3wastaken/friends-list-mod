@@ -41,11 +41,8 @@ public abstract class ClientPlayNetworkHandlerMixin {
                         return; // we dont care if the player is still in the passengers
             }
 
-
-
             // player is not in new passenger list, player was a passenger before this packet, and this is enabled
             // ran NEXT tick
-
             for (int i = 0; i < 4; i++) {
                 FriendsListMod.scheduleTask(i, () -> {
                     if (mc.player != null && mc.world != null) {
