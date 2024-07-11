@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPlayNetworkHandler.class)
 public abstract class ClientPlayNetworkHandlerMixin {
     @Inject(method = "onEntityPassengersSet", at = @At(value = "TAIL"))
-    public void friendslistmod$attemptToReenterRiderAsPassengerWhenLaggy(EntityPassengersSetS2CPacket packet, CallbackInfo ci, @Local(ordinal = 0) Entity entity, @Local boolean bl) {
+    public void friendslistmod$attemptToReenterAsPassengerWhenLaggy(EntityPassengersSetS2CPacket packet, CallbackInfo ci, @Local(ordinal = 0) Entity entity, @Local boolean bl) {
         if (!FriendsListMod.antiArchLagForFlyingMachine)
             return;
 
@@ -38,8 +38,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
                     return; // we dont care if the player is still in the passengers
             }
 
-            // player is not in new passenger list, player was a passenger before this packet, and this is enabled
-            // ran NEXT tick
+            // player is not in new passenger list, player was a passenger before this packet, and this feature is enabled
             for (int i = 0; i < 4; i++) {
                 FriendsListMod.scheduleTask(i, () -> {
                     if (mc.player != null && mc.world != null) {
@@ -49,7 +48,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
                 });
             }
 
-            // we are not in a boat, this is the 5th tick since being kicked out, log out so we dont die
+            // we are not a passenger, this is the 5th tick since being kicked out, log out so we dont die
             FriendsListMod.scheduleTask(4, () -> {
                 if (mc.player != null && mc.world != null) {
                     if (mc.player.getVehicle() == null)
