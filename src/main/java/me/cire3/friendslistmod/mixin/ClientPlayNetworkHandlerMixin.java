@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPlayNetworkHandler.class)
 public abstract class ClientPlayNetworkHandlerMixin {
     @Inject(method = "onEntityPassengersSet", at = @At(value = "TAIL"))
-    public void friendslistmod$attemptToReenterRiderAsPassengerWhenLaggy(EntityPassengersSetS2CPacket packet, CallbackInfo ci, @Local boolean bl) {
+    public void friendslistmod$attemptToReenterRiderAsPassengerWhenLaggy(EntityPassengersSetS2CPacket packet, CallbackInfo ci, @Local(ordinal = 0) Entity entity, @Local boolean bl) {
         if (!FriendsListMod.antiArchLagForFlyingMachine)
             return;
 
@@ -29,11 +29,10 @@ public abstract class ClientPlayNetworkHandlerMixin {
             return;
 
         if (mc.getCurrentServerEntry() != null && mc.getCurrentServerEntry().address.contains("mc.arch.lol")) {
-            Entity entity = mc.world.getEntityById(packet.getId());
-
             if (entity == null)
                 return;
 
+            // we could technically remove this loop via another mixin, but its not priority + the loop is only up to a few passengers
             for (int i : packet.getPassengerIds()) {
                 Entity entity2 = mc.world.getEntityById(i);
                 if (entity2 != null)
