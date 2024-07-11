@@ -34,10 +34,8 @@ public abstract class ClientPlayNetworkHandlerMixin {
 
             // we could technically remove this loop via another mixin, but its not priority + the loop is only up to a few passengers
             for (int i : packet.getPassengerIds()) {
-                Entity entity2 = mc.world.getEntityById(i);
-                if (entity2 != null)
-                    if (entity2 == mc.player)
-                        return; // we dont care if the player is still in the passengers
+                if (i == mc.player.getId())
+                    return; // we dont care if the player is still in the passengers
             }
 
             // player is not in new passenger list, player was a passenger before this packet, and this is enabled
