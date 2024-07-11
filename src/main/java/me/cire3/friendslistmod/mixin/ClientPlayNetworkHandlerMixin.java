@@ -29,6 +29,9 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (entity == null)
             return;
 
+        if (!bl) // bl is whether player was riding
+            return;
+
         FriendsListMod.scheduleTask(0, () -> mc.player.interact(entity, Hand.MAIN_HAND));
         FriendsListMod.scheduleTask(1, () -> mc.player.interact(entity, Hand.MAIN_HAND));
         FriendsListMod.scheduleTask(2, () -> mc.player.interact(entity, Hand.MAIN_HAND));
