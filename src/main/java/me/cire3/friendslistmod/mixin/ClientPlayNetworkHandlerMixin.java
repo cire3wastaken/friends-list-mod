@@ -5,9 +5,7 @@ import me.cire3.friendslistmod.FriendsListMod;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.network.packet.s2c.play.EntityPassengersSetS2CPacket;
-import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Hand;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,7 +24,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (mc.world == null || mc.player == null)
             return;
 
-        if (mc.getCurrentServerEntry() != null && !mc.getCurrentServerEntry().address.contains("mc.arch.lol")) {
+        if (mc.getCurrentServerEntry() != null && mc.getCurrentServerEntry().address.contains("mc.arch.lol")) {
             Entity entity = mc.world.getEntityById(packet.getId());
 
             boolean wasPlayerAPassenger = bl;
