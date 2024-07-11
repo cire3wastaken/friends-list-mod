@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import me.cire3.friendslistmod.commands.ForceReloadDataCommand;
+import me.cire3.friendslistmod.commands.ToggleAntiArchLagForFlyingMachinesCommand;
 import me.cire3.friendslistmod.commands.ToggleArchOnlyMessagesCommand;
 import me.cire3.friendslistmod.commands.TogglePlayerOutlinesCommand;
 import net.fabricmc.api.ModInitializer;
@@ -49,12 +50,19 @@ public class FriendsListMod implements ModInitializer {
     public static String[] kos;
     public static boolean sendOnArchOnly = true;
     public static boolean outlinesEnabled = true;
+    public static boolean antiArchLagForFlyingMachine = false;
     public static final Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
     public static final Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
     private static final Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
 
     private static int lastCount = -1;
     private static long lastRun = -1;
+
+    private static Map<Runnable, Long> tasks = new HashMap<>();
+
+    public static void scheduleTask(int ticks, Runnable runnable) {
+        tasks.put(runnable, System.currentTimeMillis() + ticks * 50L);
+    }
 
     @Override
     public void onInitialize() {
@@ -75,6 +83,18 @@ public class FriendsListMod implements ModInitializer {
         });
 
         ClientTickEvents.START_CLIENT_TICK.register((minecraftClient) -> {
+            Map<Runnable, Long> map = new HashMap<>(tasks.size());
+
+            for (Map.Entry<Runnable, Long> entry : tasks.entrySet()) {
+                if (System.currentTimeMillis() >= entry.getValue()) {
+                    entry.getKey().run();
+                } else {
+                    map.put(entry.getKey(), System.currentTimeMillis());
+                }
+            }
+
+            tasks = map;
+
             // run every 15 seconds
             if (lastRun == -1 || (System.currentTimeMillis() - lastRun >= 15000)) {
                 lastRun = System.currentTimeMillis();
@@ -92,6 +112,7 @@ public class FriendsListMod implements ModInitializer {
         ForceReloadDataCommand.register(this);
         ToggleArchOnlyMessagesCommand.register();
         TogglePlayerOutlinesCommand.register(this);
+        ToggleAntiArchLagForFlyingMachinesCommand.register(this);
     }
 
     @SuppressWarnings("deprecation")
