@@ -5,7 +5,9 @@ import me.cire3.friendslistmod.FriendsListMod;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.network.packet.s2c.play.EntityPassengersSetS2CPacket;
+import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Hand;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,24 +26,43 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (mc.world == null || mc.player == null)
             return;
 
-        Entity entity = mc.world.getEntityById(packet.getId());
+        if (mc.getCurrentServerEntry() != null && !mc.getCurrentServerEntry().address.contains("mc.arch.lol")) {
+            Entity entity = mc.world.getEntityById(packet.getId());
 
-        if (entity == null)
-            return;
+            boolean wasPlayerAPassenger = bl;
 
-        if (!bl) // bl is whether player was riding
-            return;
+            if (entity == null)
+                return;
 
-        FriendsListMod.scheduleTask(0, () -> mc.player.interact(entity, Hand.MAIN_HAND));
-        FriendsListMod.scheduleTask(1, () -> mc.player.interact(entity, Hand.MAIN_HAND));
-        FriendsListMod.scheduleTask(2, () -> mc.player.interact(entity, Hand.MAIN_HAND));
-        FriendsListMod.scheduleTask(3, () -> mc.player.interact(entity, Hand.MAIN_HAND));
-
-        FriendsListMod.scheduleTask(4, () -> {
-            if (mc.player != null && mc.world != null) {
-                if (mc.player.getVehicle() == null)
-                    mc.disconnect();
+            for (int i : packet.getPassengerIds()) {
+                Entity entity2 = mc.world.getEntityById(i);
+                if (entity2 != null)
+                    if (entity2 == mc.player)
+                        return; // we dont care if the player is still in the passengers
             }
-        });
+
+            if (!wasPlayerAPassenger)
+                return;
+
+            // player is not in new passenger list, player was a passenger before this packet, and this is enabled
+            // ran NEXT tick
+
+            for (int i = 0; i < 4; i++) {
+                FriendsListMod.scheduleTask(i, () -> {
+                    if (mc.player != null && mc.world != null) {
+                        if (mc.player.getVehicle() == null)
+                            mc.player.interact(entity, Hand.MAIN_HAND);
+                    }
+                });
+            }
+
+            // we are not in a boat, this is the 5th tick since being kicked out, log out so we dont die
+            FriendsListMod.scheduleTask(4, () -> {
+                if (mc.player != null && mc.world != null) {
+                    if (mc.player.getVehicle() == null)
+                        mc.disconnect();
+                }
+            });
+        }
     }
 }
