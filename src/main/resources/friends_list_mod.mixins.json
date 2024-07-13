@@ -6,12 +6,10 @@
     "EntityColorMixin",
     "EntityRendererMixin",
     "LivingEntityMixin",
+    "ClientPlayNetworkHandlerMixin",
     "PlayerListHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1
-  },
-  "client": [
-    "ClientPlayNetworkHandlerMixin"
-  ]
+  }
 }

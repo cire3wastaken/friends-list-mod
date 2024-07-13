@@ -2,6 +2,7 @@ package me.cire3.friendslistmod.commands;
 
 import me.cire3.friendslistmod.FriendsListMod;
 import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.text.LiteralText;
@@ -11,7 +12,7 @@ public class TogglePlayerOutlinesCommand {
         ClientCommandManager.DISPATCHER.register(ClientCommandManager.literal("toggleplayeroutlines").executes(context -> {
             FriendsListMod.outlinesEnabled = !FriendsListMod.outlinesEnabled;
             if (FriendsListMod.outlinesEnabled) {
-                mod.update();
+                mod.updateAll(MinecraftClient.getInstance());
             } else {
                 for (AbstractClientPlayerEntity player : FriendsListMod.teammateEntities) {
                     player.removeStatusEffect(StatusEffects.GLOWING);

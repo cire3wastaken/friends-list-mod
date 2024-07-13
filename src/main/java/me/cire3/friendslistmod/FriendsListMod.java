@@ -10,23 +10,21 @@ import me.cire3.friendslistmod.commands.ToggleArchOnlyMessagesCommand;
 import me.cire3.friendslistmod.commands.TogglePlayerOutlinesCommand;
 import net.fabricmc.api.ModInitializer;
 
-import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.resource.Resource;
 import net.minecraft.scoreboard.Team;
-import net.minecraft.text.LiteralText;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.GameMode;
@@ -38,6 +36,8 @@ import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.util.*;
 
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_X;
+
 public class FriendsListMod implements ModInitializer {
     // This logger is used to write text to the console and the log file.
     // It is considered best practice to use your mod id as the logger's name.
@@ -45,23 +45,27 @@ public class FriendsListMod implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("friendslistmod");
     public static final String FALLBACK_DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_21/src/main/resources/assets/friendslistmod/data.json";
     public static final String POINTER_DATA_URL = "https://raw.githubusercontent.com/cire3wastaken/friends-list-mod/1_20_4/pointer.txt";
+
+    public static final Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
+    public static final Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
+    public static final Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
+
     public static JsonObject jsonData = null;
     public static String[] teammates;
     public static String[] kos;
     public static boolean sendOnArchOnly = true;
     public static boolean outlinesEnabled = true;
     public static boolean antiArchLagForFlyingMachine = false;
-    public static final Set<AbstractClientPlayerEntity> teammateEntities = new HashSet<>();
-    public static final Set<AbstractClientPlayerEntity> kosEntities = new HashSet<>();
-    private static final Set<AbstractClientPlayerEntity> alertedKosEntities = new HashSet<>();
+    public static int curTick = 0;
 
+    private static int lastRefreshTick = Integer.MIN_VALUE;
     private static int lastCount = -1;
     private static long lastRun = -1;
-
-    private static Map<Runnable, Long> tasks = new HashMap<>();
+    private static Map<Runnable, Integer> tasks = new HashMap<>();
+    private static KeyBinding f3aKeyBind = new KeyBinding("quality_of_life.f3a", GLFW_KEY_X, "quality_of_life");
 
     public static void scheduleTask(int ticks, Runnable runnable) {
-        tasks.put(runnable, System.currentTimeMillis() + ticks * 50L);
+        tasks.put(runnable, curTick + ticks);
     }
 
     @Override
@@ -71,7 +75,7 @@ public class FriendsListMod implements ModInitializer {
         // Proceed with mild caution.
 
         EntityTrackingEvents.START_TRACKING.register((trackedEntity, player) -> {
-            this.update(trackedEntity);
+            this.updateUnknownEntityType(MinecraftClient.getInstance(), trackedEntity);
         });
 
         EntityTrackingEvents.STOP_TRACKING.register((trackedEntity, player) -> {
@@ -83,10 +87,20 @@ public class FriendsListMod implements ModInitializer {
         });
 
         ClientTickEvents.START_CLIENT_TICK.register((minecraftClient) -> {
-            Map<Runnable, Long> map = new HashMap<>(tasks.size());
+            curTick++;
 
-            for (Map.Entry<Runnable, Long> entry : tasks.entrySet()) {
-                if (System.currentTimeMillis() >= entry.getValue()) {
+            if (f3aKeyBind.isPressed()) {
+                if (curTick + 10 > lastRefreshTick) {
+                    minecraftClient.worldRenderer.reload();
+                    this.debugLog("debug.reload_chunks.message");
+                    lastRefreshTick = curTick;
+                }
+            }
+
+            Map<Runnable, Integer> map = new HashMap<>(tasks.size());
+
+            for (Map.Entry<Runnable, Integer> entry : tasks.entrySet()) {
+                if (curTick >= entry.getValue()) {
                     entry.getKey().run();
                 } else {
                     map.put(entry.getKey(), entry.getValue());
@@ -100,14 +114,15 @@ public class FriendsListMod implements ModInitializer {
                 lastRun = System.currentTimeMillis();
 
                 if (jsonData == null || teammates == null || kos == null)
-                    this.setupData();
+                    this.setupData(minecraftClient);
 
                 // we will mostly use spawn packets for registering ppl as enemies or teammates
-                MinecraftClient mc = MinecraftClient.getInstance();
-                if (mc.world != null && mc.player != null)
-                    this.update();
+                if (minecraftClient.world != null && minecraftClient.player != null)
+                    this.updateAll(minecraftClient);
             }
         });
+
+        KeyBindingHelper.registerKeyBinding(f3aKeyBind);
 
         ForceReloadDataCommand.register(this);
         ToggleArchOnlyMessagesCommand.register();
@@ -116,7 +131,7 @@ public class FriendsListMod implements ModInitializer {
     }
 
     @SuppressWarnings("deprecation")
-    public void setupData() {
+    public void setupData(MinecraftClient client) {
         try (BufferedInputStream in = new BufferedInputStream(new URL(POINTER_DATA_URL).openStream())) {
             ByteArrayOutputStream bao = new ByteArrayOutputStream();
             byte[] buffer = new byte[1024];
@@ -170,7 +185,7 @@ public class FriendsListMod implements ModInitializer {
             // use hardcoded
             if (jsonData == null) {
                 Resource resource;
-                resource = MinecraftClient.getInstance().getResourceManager().getResource(new Identifier("friendslistmod", "data.json"));
+                resource = client.getResourceManager().getResource(new Identifier("friendslistmod", "data.json"));
 
                 if (resource == null)
                     throw new RuntimeException("Could not find friends data!");
@@ -199,12 +214,11 @@ public class FriendsListMod implements ModInitializer {
             kos[i] = kosJson.get(i).getAsString();
     }
 
-    public void update() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null || mc.player == null)
+    public void updateAll(MinecraftClient client) {
+        if (client.world == null || client.player == null)
             return;
 
-        List<AbstractClientPlayerEntity> entities = mc.world.getPlayers();
+        List<AbstractClientPlayerEntity> entities = client.world.getPlayers();
         if (entities.size() == lastCount)
             return;
 
@@ -215,21 +229,21 @@ public class FriendsListMod implements ModInitializer {
 
         for (AbstractClientPlayerEntity player : entities) {
             String username = player.getGameProfile().getName();
-            this.update(username, player);
+            this.updatePlayer(client, username, player);
         }
     }
 
-    public void update(Entity entity) {
+    public void updateUnknownEntityType(MinecraftClient client, Entity entity) {
         if (entity instanceof AbstractClientPlayerEntity) {
-            this.update(((AbstractClientPlayerEntity) entity).getGameProfile().getName(), (AbstractClientPlayerEntity) entity, true);
+            this.updatePlayer(client, ((AbstractClientPlayerEntity) entity).getGameProfile().getName(), (AbstractClientPlayerEntity) entity, true);
         }
     }
 
-    public void update(String username, AbstractClientPlayerEntity player) {
-        this.update(username, player, false);
+    public void updatePlayer(MinecraftClient client, String username, AbstractClientPlayerEntity player) {
+        this.updatePlayer(client, username, player, false);
     }
 
-    public void update(String username, AbstractClientPlayerEntity player, boolean wasFromPacket) {
+    public void updatePlayer(MinecraftClient client, String username, AbstractClientPlayerEntity player, boolean wasFromPacket) {
         for (String teammate : teammates) {
             // cracked servers suck balls otherwise this be a UUID list kms
             if (teammate.equalsIgnoreCase(username)) { // must becuz cracked servers suck my balls bro
@@ -246,7 +260,7 @@ public class FriendsListMod implements ModInitializer {
             }
         }
 
-        ServerInfo server = MinecraftClient.getInstance().getCurrentServerEntry();
+        ServerInfo server = client.getCurrentServerEntry();
         boolean shouldSend = (server != null && server.address.contains("mc.arch.lol")) || !sendOnArchOnly;
         for (String kos : kos) {
             // cracked servers suck balls otherwise this be a UUID list kms
@@ -259,7 +273,7 @@ public class FriendsListMod implements ModInitializer {
                 }
 
                 if (wasFromPacket || !alertedKosEntities.contains(player)) {
-                    ClientPlayerEntity clientPlayer = MinecraftClient.getInstance().player;
+                    ClientPlayerEntity clientPlayer = client.player;
 
                     int left = -42;
                     int right = 43;
@@ -288,7 +302,7 @@ public class FriendsListMod implements ModInitializer {
                                     .replace("%z%", (int) selfZ + "") + (inBounds(left, top, right, bottom, selfX, selfZ) ? ". I am in spawn." : "."));
 
                             for (String teammate : teammates) {
-                                if (MinecraftClient.getInstance().getNetworkHandler().getPlayerList().stream().anyMatch(
+                                if (client.getNetworkHandler().getPlayerList().stream().anyMatch(
                                         (entry) -> teammate.equals(entry.getProfile().getName()))) {
                                     clientPlayer.sendChatMessage("/tpahere %teammate%"
                                             .replace("%teammate%", teammate));
@@ -334,5 +348,22 @@ public class FriendsListMod implements ModInitializer {
 
     private static Text applyGameModeFormatting(PlayerListEntry entry, MutableText name) {
         return entry.getGameMode() == GameMode.SPECTATOR ? name.formatted(Formatting.ITALIC) : name;
+    }
+
+    private void debugLog(Text text) {
+        this.addDebugMessage(text);
+    }
+
+    private void debugLog(String key, Object... args) {
+        this.debugLog(new TranslatableText(key, args));
+    }
+
+    private void addDebugMessage(Text text) {
+        MinecraftClient.getInstance()
+                .inGameHud
+                .getChatHud()
+                .addMessage(
+                        new LiteralText("").append(new TranslatableText("debug.prefix").formatted(Formatting.YELLOW, Formatting.BOLD)).append(" ").append(text)
+                );
     }
 }
