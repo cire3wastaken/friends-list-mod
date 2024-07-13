@@ -23,15 +23,15 @@ public abstract class ClientPlayNetworkHandlerMixin {
         if (!wasPlayerAPassenger)
             return;
 
+        if (entity == null)
+            return;
+
         MinecraftClient mc = MinecraftClient.getInstance();
 
         if (mc.world == null || mc.player == null)
             return;
 
         if (mc.getCurrentServerEntry() != null && mc.getCurrentServerEntry().address.contains("mc.arch.lol")) {
-            if (entity == null)
-                return;
-
             // we could technically remove this loop via another mixin, but its not priority + the loop is only up to a few passengers
             for (int i : packet.getPassengerIds()) {
                 if (i == mc.player.getId())
