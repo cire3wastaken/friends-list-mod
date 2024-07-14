@@ -100,8 +100,6 @@ public class FriendsListMod implements ModInitializer {
                 }
             }
 
-            ItemStack
-
             if (archCombatLogBypassKeybind.isPressed()) {
                 cancelTransactionAmount++;
             }
