@@ -37,6 +37,7 @@ import java.net.URL;
 import java.util.*;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_X;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_Z;
 
 public class FriendsListMod implements ModInitializer {
     // This logger is used to write text to the console and the log file.
@@ -57,12 +58,14 @@ public class FriendsListMod implements ModInitializer {
     public static boolean outlinesEnabled = true;
     public static boolean antiArchLagForFlyingMachine = false;
     public static int curTick = 0;
+    public static int cancelTransactionAmount = 0;
 
     private static int lastRefreshTick = Integer.MIN_VALUE;
     private static int lastCount = -1;
     private static long lastRun = -1;
     private static Map<Runnable, Integer> tasks = new HashMap<>();
     private static KeyBinding f3aKeyBind = new KeyBinding("quality_of_life.f3a", GLFW_KEY_X, "quality_of_life");
+    private static KeyBinding archCombatLogBypassKeybind = new KeyBinding("ArchMCCombatLogBypass", GLFW_KEY_Z, "ArchMCQoLClient");
 
     public static void scheduleTask(int ticks, Runnable runnable) {
         tasks.put(runnable, curTick + ticks);
@@ -97,6 +100,12 @@ public class FriendsListMod implements ModInitializer {
                 }
             }
 
+            ItemStack
+
+            if (archCombatLogBypassKeybind.isPressed()) {
+                cancelTransactionAmount++;
+            }
+
             Map<Runnable, Integer> map = new HashMap<>(tasks.size());
 
             for (Map.Entry<Runnable, Integer> entry : tasks.entrySet()) {
@@ -123,6 +132,7 @@ public class FriendsListMod implements ModInitializer {
         });
 
         KeyBindingHelper.registerKeyBinding(f3aKeyBind);
+        KeyBindingHelper.registerKeyBinding(archCombatLogBypassKeybind);
 
         ForceReloadDataCommand.register(this);
         ToggleArchOnlyMessagesCommand.register();

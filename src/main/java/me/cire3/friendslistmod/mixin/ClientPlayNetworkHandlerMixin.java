@@ -6,6 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.s2c.play.EntityPassengersSetS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayPingS2CPacket;
 import net.minecraft.util.Hand;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -55,6 +56,14 @@ public abstract class ClientPlayNetworkHandlerMixin {
                         mc.disconnect();
                 }
             });
+        }
+    }
+
+    @Inject(method = "onPing", at = @At("HEAD"), cancellable = true)
+    public void friendslistmod$cancelNextTransaction(PlayPingS2CPacket packet, CallbackInfo ci) {
+        if (FriendsListMod.cancelTransactionAmount > 0) {
+            FriendsListMod.cancelTransactionAmount--;
+            ci.cancel();
         }
     }
 }
