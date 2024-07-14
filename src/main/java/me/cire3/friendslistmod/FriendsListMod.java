@@ -22,6 +22,8 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.resource.Resource;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.text.*;
@@ -67,6 +69,12 @@ public class FriendsListMod implements ModInitializer {
     private static KeyBinding f3aKeyBind = new KeyBinding("quality_of_life.f3a", GLFW_KEY_X, "quality_of_life");
     private static KeyBinding archCombatLogBypassKeybind = new KeyBinding("ArchMCCombatLogBypass", GLFW_KEY_Z, "ArchMCQoLClient");
 
+    private static final PlayerMoveC2SPacket.PositionAndOnGround ILLEGAL_PACKET;
+
+    static {
+        ILLEGAL_PACKET = new PlayerMoveC2SPacket.PositionAndOnGround(Double.NaN, Double.NaN, Double.NaN, false);
+    }
+
     public static void scheduleTask(int ticks, Runnable runnable) {
         tasks.put(runnable, curTick + ticks);
     }
@@ -92,18 +100,6 @@ public class FriendsListMod implements ModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register((minecraftClient) -> {
             curTick++;
 
-            if (f3aKeyBind.isPressed()) {
-                if (curTick + 10 > lastRefreshTick) {
-                    minecraftClient.worldRenderer.reload();
-                    this.debugLog("debug.reload_chunks.message");
-                    lastRefreshTick = curTick;
-                }
-            }
-
-            if (archCombatLogBypassKeybind.isPressed()) {
-                cancelTransactionAmount++;
-            }
-
             Map<Runnable, Integer> map = new HashMap<>(tasks.size());
 
             for (Map.Entry<Runnable, Integer> entry : tasks.entrySet()) {
@@ -115,6 +111,30 @@ public class FriendsListMod implements ModInitializer {
             }
 
             tasks = map;
+
+            if (minecraftClient.world != null && minecraftClient.player != null) {
+                if (f3aKeyBind.isPressed()) {
+                    if (curTick + 10 > lastRefreshTick) {
+                        minecraftClient.worldRenderer.reload();
+                        this.debugLog("debug.reload_chunks.message");
+                        lastRefreshTick = curTick;
+                    }
+                }
+
+                if (archCombatLogBypassKeybind.isPressed()) {
+//                    PlayerAbilities pa = new PlayerAbilities();
+//                    pa.flying = true;
+//                    pa.allowFlying = true;
+//                    pa.invulnerable = true;
+//                    pa.creativeMode = true;
+//
+//                    minecraftClient.getNetworkHandler().sendPacket(new UpdatePlayerAbilitiesC2SPacket(pa));
+                    minecraftClient.getNetworkHandler().sendPacket(ILLEGAL_PACKET);
+//                    minecraftClient.player.setPos();
+                    cancelTransactionAmount++;
+//                    minecraftClient.player.setPos(Double.NaN, Double.NaN, Double.NaN);
+                }
+            }
 
             // run every 15 seconds
             if (lastRun == -1 || (System.currentTimeMillis() - lastRun >= 15000)) {

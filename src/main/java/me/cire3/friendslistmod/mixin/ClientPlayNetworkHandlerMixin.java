@@ -59,6 +59,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
         }
     }
 
+//     polar is actually retarded and won't kick me for skipping transactions ?!?!
     @Inject(method = "onPing", at = @At("HEAD"), cancellable = true)
     public void friendslistmod$cancelNextTransaction(PlayPingS2CPacket packet, CallbackInfo ci) {
         if (FriendsListMod.cancelTransactionAmount > 0) {
