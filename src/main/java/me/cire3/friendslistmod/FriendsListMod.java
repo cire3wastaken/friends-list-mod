@@ -161,8 +161,8 @@ public class FriendsListMod implements ModInitializer {
 
     @SuppressWarnings("deprecation")
     public void setupData(MinecraftClient client) {
-        try (BufferedInputStream in = new BufferedInputStream(new URL(POINTER_DATA_URL).openStream())) {
-            ByteArrayOutputStream bao = new ByteArrayOutputStream();
+        try (BufferedInputStream in = new BufferedInputStream(new URL(POINTER_DATA_URL).openStream());
+                ByteArrayOutputStream bao = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[1024];
             int count = 0;
             while ((count = in.read(buffer, 0, 1024)) != -1) {
@@ -170,8 +170,8 @@ public class FriendsListMod implements ModInitializer {
             }
 
             // read the URL the pointer url points to
-            try (BufferedInputStream in2 = new BufferedInputStream(new URL(bao.toString()).openStream())) {
-                ByteArrayOutputStream bao1 = new ByteArrayOutputStream();
+            try (BufferedInputStream in2 = new BufferedInputStream(new URL(bao.toString()).openStream());
+                    ByteArrayOutputStream bao1 = new ByteArrayOutputStream()) {
                 while ((count = in2.read(buffer, 0, 1024)) != -1) {
                     bao1.write(buffer, 0, count);
                 }
@@ -220,6 +220,7 @@ public class FriendsListMod implements ModInitializer {
                     throw new RuntimeException("Could not find friends data!");
 
                 byte[] bytes = resource.getInputStream().readAllBytes();
+                resource.close(); // oops
                 String json = new String(bytes);
                 jsonData = JsonParser.parseString(json).getAsJsonObject();
             }
